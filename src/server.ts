@@ -102,3 +102,38 @@ app.listen(PORT, () => {
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// Generate daily motivational quote based on user's movies and role models
+app.post('/api/generate-daily-quote', async (req: Request, res: Response) => {
+  try {
+    const { userProfile } = req.body;
+
+    if (!userProfile) {
+      res.status(400).json({ error: 'User profile is required' });
+      return;
+    }
+
+    let quote: string;
+    let fallback = false;
+
+    try {
+      quote = await geminiService.generateDailyQuote(userProfile);
+    } catch (error) {
+      console.error('AI generation failed, using fallback');
+      quote = geminiService.getFallbackQuote();
+      fallback = true;
+    }
+
+    res.json({
+      quote,
+      timestamp: new Date().toISOString(),
+      ...(fallback && { fallback: true }),
+    });
+  } catch (error) {
+    console.error('Error generating quote:', error);
+    res.status(500).json({
+      error: 'Failed to generate quote',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
